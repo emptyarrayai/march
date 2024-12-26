@@ -1,8 +1,8 @@
 import { validateGoogleUser, getUserByEmail, createGoogleUser, createGithubUser, validateGithubUser } from "../../services/core/user.service.js";
 import { generateJWTTokenPair } from "../../utils/jwt.service.js";
 import { BlackList } from "../../models/core/black-list.model.js";
-import { spaceQueue } from "../../loaders/bullmq.loader.js";
 import { logsnag } from "../../loaders/logsnag.loader.js";
+import { typeQueue } from "../../jobs/type.job.js";
 
 const authenticateWithGoogleController = async (req, res, next) => {
     try {
@@ -28,10 +28,10 @@ const authenticateWithGoogleController = async (req, res, next) => {
 
             // Log user event to LogSnag
             await logsnag.track({
-                channel: "waitlist",
-                event: `${user.userName} is Waitlisted`,
+                channel: "new-users",
+                event: `${user.userName} is Added`,
                 user_id: user._id,
-                icon: "⏳",
+                icon: "✨",
                 notify: true,
                 tags: {
                     method: "Google",
@@ -40,14 +40,14 @@ const authenticateWithGoogleController = async (req, res, next) => {
                 }
             });
 
-            // Add job to spaceQueue
-            await spaceQueue.add('spaceQueue', { user: user._id }, {
+            // Add job to typeQueue
+            await typeQueue.add('typeQueue', { user: user._id }, {
                 attempts: 3,
                 backoff: 1000, // 1 second delay between retries
                 timeout: 30000 // Job timeout set to 30 seconds
             });
 
-            console.log("Job added to spaceQueue");
+            console.log("Job added to typeueue");
         }
 
         const tokenPair = await generateJWTTokenPair(user);
@@ -83,10 +83,10 @@ const authenticateWithGithubController = async (req, res, next) => {
 
             // Log user event to LogSnag
             await logsnag.track({
-                channel: "waitlist",
-                event: `${user.userName} is Waitlisted`,
+                channel: "new-users",
+                event: `${user.userName} is Added`,
                 user_id: user._id,
-                icon: "⏳",
+                icon: "✨",
                 notify: true,
                 tags: {
                     method: "Github",
@@ -95,14 +95,14 @@ const authenticateWithGithubController = async (req, res, next) => {
                 }
             });
 
-            // Add job to spaceQueue
-            await spaceQueue.add('spaceQueue', { user: user._id }, {
+            // Add job to typeQueue
+            await typeQueue.add('typeQueue', { user: user._id }, {
                 attempts: 3,
                 backoff: 1000, // 1 second delay between retries
                 timeout: 30000 // Job timeout set to 30 seconds
             });
 
-            console.log("Job added to spaceQueue");
+            console.log("Job added to typeQueue");
         }
         const tokenPair = await generateJWTTokenPair(user)
         res.status(200).json({
