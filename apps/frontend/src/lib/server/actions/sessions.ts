@@ -9,10 +9,9 @@ import { ACCESS_TOKEN } from "@/src/lib/constants/cookie"
  * Asynchronously retrieves the session token.
  * @returns A Promise that resolves to a string representing the session token.
  */
-const getSession = async (): Promise<string> => {
-  const token = (await cookies()).get(ACCESS_TOKEN)
-  const session = token?.value
-  return session ?? ""
+const getSession = (): string => {
+  const token = cookies().get(ACCESS_TOKEN) // Remove `await` and `async`
+  return token?.value || "" // Provide a default value to ensure a string is always returned
 }
 
 /**

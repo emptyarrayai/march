@@ -1,10 +1,10 @@
-"use client"
+{
+  /*"use client"
 
 import { useRef, useCallback, useMemo } from "react"
 
 import { useRouter } from "next/navigation"
 
-import ActionHeader from "../ActionHeader"
 import NoteEditor from "./components/NoteEditor/NoteEditor"
 import { NoteStackModal } from "./components/NoteModal/NotesModal"
 import { useNoteEffects } from "./hooks/useNoteEffects"
@@ -153,4 +153,6 @@ const NotesPage: React.FC<Props> = ({ noteId, spaceId, blockId }) => {
   )
 }
 
-export default NotesPage
+export default NotesPage 
+} */
+}

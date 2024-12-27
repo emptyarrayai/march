@@ -1,0 +1,148 @@
+"use client"
+
+import React, { useCallback, useEffect, useState } from "react"
+
+import { usePathname } from "next/navigation"
+
+import { ItemList } from "../atoms/ItemList"
+import { RescheduleCalendar } from "../Inbox/RescheduleCalendar/RescheduleCalendar"
+import { Modal } from "../modals/RescheduleModal"
+import { useAuth } from "@/src/contexts/AuthContext"
+import { useTimezone } from "@/src/hooks/useTimezone"
+import { Item } from "@/src/lib/@types/Items/Items"
+import { useItemStore } from "@/src/lib/store/item.store"
+import { useItems, useUpdateItem } from "@/src/queries/useItem"
+import { formatRescheduleDate } from "@/src/utils/dateHelpers"
+import { getUserDate, getWeekDates } from "@/src/utils/datetime"
+import { useCtrlKey } from "@/src/utils/useKeyPress"
+
+export const ListView: React.FC = () => {
+  const { session } = useAuth()
+  const pathname = usePathname()
+  const slug = pathname?.split("/objects/")[1]?.replace("/", "")
+
+  const { data: items, isLoading } = useItems(session, slug)
+  const { mutate: updateItem } = useUpdateItem(session)
+  const { currentItem, setCurrentItem } = useItemStore()
+
+  const timezone = useTimezone()
+  const isCTRLPressed = useCtrlKey()
+  const [reschedulingItemId, setReschedulingItemId] = useState<string | null>(
+    null
+  )
+  const [dateChanged, setDateChanged] = useState(false)
+  const [date, setDate] = useState<Date | null>(new Date())
+  const [cycleDate, setCycleDate] = useState<Date | null>(new Date())
+
+  useEffect(() => {
+    if (timezone) {
+      setDate(getUserDate(timezone))
+      setCycleDate(getUserDate(timezone))
+    }
+  }, [timezone])
+
+  const handleDone = useCallback(
+    (event: React.MouseEvent, id: string, currentStatus: string) => {
+      event.stopPropagation()
+      const newStatus = currentStatus === "done" ? "null" : "done"
+      const today = getUserDate(timezone)
+      const { startDate, endDate } = getWeekDates(today)
+      updateItem({
+        id,
+        data: {
+          status: newStatus,
+          dueDate: today,
+          cycle: {
+            startsAt: new Date(startDate),
+            endsAt: new Date(endDate),
+          },
+        },
+      })
+    },
+    [updateItem, timezone]
+  )
+
+  const handleExpand = useCallback(
+    (item: Item) => {
+      if (isCTRLPressed && item.type === "bookmark") {
+        window.open(item.metadata?.url, "_blank")
+      } else if (!currentItem || currentItem._id !== item._id) {
+        setCurrentItem(item)
+      }
+    },
+    [currentItem, setCurrentItem, isCTRLPressed]
+  )
+
+  const handleCalendarClick = useCallback(
+    (e: React.MouseEvent, _id: string, dueDate: Date | string | null) => {
+      e.stopPropagation()
+      const newDate = formatRescheduleDate(dueDate, timezone)
+      setReschedulingItemId(_id)
+      setDate(newDate)
+    },
+    [timezone]
+  )
+
+  useEffect(() => {
+    if (dateChanged && reschedulingItemId) {
+      const updateData: Partial<Item> = {
+        status: date ? "todo" : "null",
+        dueDate: date,
+        cycle: cycleDate
+          ? {
+              startsAt: new Date(getWeekDates(cycleDate).startDate),
+              endsAt: new Date(getWeekDates(cycleDate).endDate),
+            }
+          : {
+              startsAt: null,
+              endsAt: null,
+            },
+      }
+
+      updateItem(
+        {
+          id: reschedulingItemId,
+          data: updateData,
+        },
+        {
+          onSuccess: () => {
+            setReschedulingItemId(null)
+            setDateChanged(false)
+          },
+        }
+      )
+    }
+  }, [date, cycleDate, updateItem, reschedulingItemId, dateChanged])
+
+  if (!items) {
+    return null
+  }
+  return (
+    <section className="no-scrollbar flex h-full flex-col gap-2 overflow-y-auto">
+      <section className="flex flex-col gap-2.5">
+        <ItemList
+          items={items.slice().reverse()}
+          handleExpand={handleExpand}
+          handleDone={handleDone}
+          handleRescheduleCalendar={handleCalendarClick}
+        />
+      </section>
+
+      {reschedulingItemId !== null && (
+        <Modal
+          isOpen={Boolean(reschedulingItemId)}
+          onClose={() => setReschedulingItemId(null)}
+        >
+          <RescheduleCalendar
+            date={date}
+            setDate={setDate}
+            cycleDate={cycleDate}
+            setCycleDate={setCycleDate}
+            dateChanged={dateChanged}
+            setDateChanged={setDateChanged}
+          />
+        </Modal>
+      )}
+    </section>
+  )
+}

@@ -1,29 +1,27 @@
 "use client"
 
-import React, { useState, useEffect, useRef } from "react"
+import { KeyboardEvent, useEffect, useState } from "react"
 
 import { AutoResizingTextarea } from "../textarea/resizing-textarea"
 import { useAuth } from "@/src/contexts/AuthContext"
-import { CycleItem } from "@/src/lib/@types/Items/Cycle"
-import { useCycleItemStore } from "@/src/lib/store/cycle.store"
+import { Item } from "@/src/lib/@types/Items/Items"
+import { useCreateItem } from "@/src/queries/useItem"
 import { isLink } from "@/src/utils/helpers"
 
-export const InboxAddItem: React.FC = () => {
+interface Props {
+  placeholder?: string
+}
+
+export const AddItem = ({ placeholder }: Props) => {
   const { session } = useAuth()
 
   const [addingItem, setAddingItem] = useState(false)
   const [title, setTitle] = useState("")
-
-  const { createItem, error } = useCycleItemStore()
-
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const handleCloseAddItemToInbox = async () => {
-    setAddingItem(false)
-    setTitle("")
-  }
+  const addItem = useCreateItem(session)
 
-  const handleAddItemToInbox = async () => {
+  const handleAddItem = async () => {
     if (isSubmitting) return
 
     const trimmedTitle = title.trim()
@@ -32,47 +30,51 @@ export const InboxAddItem: React.FC = () => {
     try {
       setIsSubmitting(true)
 
-      const linkDetected = isLink(trimmedTitle)
+      const link = isLink(trimmedTitle)
       const finalTitle =
-        linkDetected && !/^https:\/\//i.test(trimmedTitle)
+        link && !/^https:\/\//i.test(trimmedTitle)
           ? `https://${trimmedTitle}`
           : trimmedTitle
 
-      const data: Partial<CycleItem> = {
+      const data: Partial<Item> = {
         title: finalTitle,
-        type: linkDetected ? "link" : "issue",
+        type: link ? "bookmark" : "todo",
       }
 
-      if (linkDetected) {
+      if (link) {
         data.metadata = {
           url: finalTitle,
         }
       }
 
-      await createItem(session, data)
+      addItem.mutate(data)
       setAddingItem(false)
       setTitle("")
-    } finally {
-      setIsSubmitting(false)
+    } catch (error) {
+      console.error(error)
     }
   }
 
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  const handleCloseAddItem = async () => {
+    setAddingItem(false)
+    setTitle("")
+  }
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (!addingItem) {
       setAddingItem(true)
     }
-    if (event.key === "Enter") {
-      event.preventDefault()
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault()
       if (title) {
-        handleAddItemToInbox()
+        handleAddItem()
       }
     }
   }
 
-  const handleOnBlur = () => {
-    handleCloseAddItemToInbox()
+  const handleBlur = () => {
+    handleCloseAddItem()
   }
-
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (addingItem) {
@@ -90,15 +92,13 @@ export const InboxAddItem: React.FC = () => {
   return (
     <section>
       <AutoResizingTextarea
+        onBlur={handleBlur}
         value={title}
         onChange={setTitle}
         onKeyDown={handleKeyDown}
-        onBlur={handleOnBlur}
-        placeholder="add anything..."
-        className="w-full"
+        placeholder={placeholder}
         rows={1}
         showAddingItemHint={addingItem}
-        error={error}
       />
     </section>
   )

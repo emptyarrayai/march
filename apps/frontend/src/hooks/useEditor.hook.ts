@@ -13,6 +13,7 @@ import { SlashCommand } from "../extensions/SlashCommand"
 interface Props {
   content: string
   setContent: (content: string) => void
+  onBlur?: () => void
   setIsSaved?: (isSaved: boolean) => void
   placeholder?: string
 }
@@ -21,6 +22,7 @@ const useEditorHook = ({
   content,
   setContent,
   setIsSaved,
+  onBlur,
   placeholder = "press / for markdown format",
 }: Props): Editor | null => {
   const timeoutId = useRef<NodeJS.Timeout | null>(null)
@@ -49,17 +51,17 @@ const useEditorHook = ({
     content,
     autofocus: false,
     onUpdate: ({ editor }) => {
-      if (!setIsSaved) return
-      setIsSaved(false)
-      setContent(editor.getHTML())
+      const html = editor.getHTML()
+      setContent(html)
 
-      if (timeoutId.current) {
-        clearTimeout(timeoutId.current)
+      if (setIsSaved) {
+        setIsSaved(false)
       }
-
-      timeoutId.current = setTimeout(() => {
-        setIsSaved(true)
-      }, 1000)
+    },
+    onBlur: ({ event }) => {
+      if (onBlur) {
+        onBlur()
+      }
     },
     immediatelyRender: false,
   })
