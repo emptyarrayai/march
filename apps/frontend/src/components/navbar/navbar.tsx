@@ -1,46 +1,52 @@
 "use client"
 
+import Link from "next/link"
+import Image from "next/image"
 import { usePathname } from "next/navigation"
 
-import { NavLink } from "./nav-link"
+import { NavDropdown } from "./nav-dropdown"
 import { useAuth } from "@/src/contexts/AuthContext"
-import { useSpaces } from "@/src/queries/useSpace"
-import { getCurrentWeek } from "@/src/utils/datetime"
+import useUserStore from "@/src/lib/store/user.store"
 
 export const Navbar = () => {
-  const { session } = useAuth()
-  const { data: spaces } = useSpaces(session)
   const pathname = usePathname()
-  const weekNumber = getCurrentWeek(new Date())
+  const { session } = useAuth()
+  const { user } = useUserStore()
 
-  const validSpaces = Array.isArray(spaces) ? spaces : []
+  console.log('user', user)
 
   return (
-    <nav className="flex items-center">
-      <div className="flex gap-12 text-[16px] font-medium">
-        <NavLink
-          href="/inbox"
-          label="Inbox"
-          isActive={pathname.includes("/inbox")}
-        />
-        <NavLink
-          href="/today"
-          label="Today"
-          isActive={pathname.includes("/today")}
-        />
-        <NavLink
-          href="/this-week"
-          label={`Week ${weekNumber}`}
-          isActive={pathname.includes("/this-week")}
-        />
-        {validSpaces?.map((space) => (
-          <NavLink
-            key={space._id}
-            href={`/spaces/${space._id}`}
-            label={`${space.name}`}
-            isActive={pathname.includes(`/spaces/${space._id}`)}
-          />
-        ))}
+    <nav className="flex h-14 items-center">
+      <div className="flex items-center justify-between w-full px-8">
+        <div className="flex items-center">
+          {/* Logo */}
+          <div className="pl-4">
+            <Link href="/" className="flex items-center space-x-2">
+              <Image
+                src="/icons/logo.svg"
+                alt="March Logo"
+                width={16}
+                height={16}
+                className="text-primary"
+              />
+              <span className="font-medium text-base">march</span>
+            </Link>
+          </div>
+
+          {/* Navigation Dropdown */}
+          <div className="ml-2">
+            <NavDropdown currentPath={pathname} />
+          </div>
+        </div>
+
+        {/* Profile */}
+        <div className="flex items-center pr-4">
+          <Link href="/profile" className="flex items-center">
+            <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-sm font-medium text-gray-700">
+              {user?.userName?.[0]?.toUpperCase() || 'U'}
+            </div>
+          </Link>
+        </div>
       </div>
     </nav>
   )
